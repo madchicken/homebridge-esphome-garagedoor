@@ -1,0 +1,10 @@
+{
+  "name": "homebridge-esphome-garagedoor",
+  "version": "1.0.0",
+  "description": "Homebridge plugin to map garage door with a Shelly1 and ESPHome",
+  "main": "dist/index.js",
+  "repository": "https://github.com/madchicken/homebridge-esphome-garagedoor",
+  "author": "Pierpaolo Follia <pfollia@gmail.com>",
+  "license": "MIT",
+  "private": false
+}
