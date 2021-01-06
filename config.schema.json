@@ -1,0 +1,30 @@
+{
+  "pluginAlias": "GarageDoor",
+  "pluginType": "accessory",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Garage",
+        "minLength": 1,
+        "required": true
+      },
+      "port": {
+        "title": "Port",
+        "description": "",
+        "type": "number",
+        "default": 80,
+        "required": true
+      },
+      "host": {
+        "title": "Host",
+        "description": "ESPHome Host IP/Name",
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "form": ["name", "host", "port"]
+}

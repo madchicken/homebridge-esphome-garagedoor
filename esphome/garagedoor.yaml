@@ -1,0 +1,102 @@
+esphome:
+  name: garagedoor
+  platform: ESP8266
+  board: esp01_1m
+
+wifi:
+  ssid: !secret wifi_iot_ssid
+  password: !secret wifi_iot_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: 'Garagedoor Fallback Hotspot'
+    password: !secret esphome_fallback_ap_password
+
+web_server:
+  port: 80
+
+#mqtt:
+#  broker: 192.168.0.12
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+# The door contact sensor that is attached to SW on the
+# Shelly 1. Not exposed to HA, instead used to set the
+# state of the cover.
+binary_sensor:
+  - platform: gpio
+    pin: GPIO5
+    name: 'Garage Door Contact Sensor'
+    id: close_contact_sensor
+    internal: true
+    filters:
+      - invert:
+
+# The relay in the Shelly 1 that will deliver the pulse to
+# the garage door opener (not exposed to HA)
+switch:
+  - platform: gpio
+    pin: GPIO4
+    name: 'Garage Door Relay'
+    id: relay
+    internal: true
+
+# 0: IDLE, 1: OPENING, 2: CLOSING
+globals:
+  - id: state
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+# This creates the actual garage door in HA. The state is based
+# on the contact sensor. Opening/closing the garage door simply
+# turns the relay on/off with a 0.5s delay in between.
+cover:
+  - platform: template
+    device_class: garage
+    name: 'Garage Door'
+    id: template_cov
+    lambda: |-
+      if (id(close_contact_sensor).state) {
+        return COVER_OPEN;
+      } else {
+        return COVER_CLOSED;
+      }
+    open_action:
+      - lambda: |-
+          if(id(state) > 0) {
+            id(relay).turn_off();
+          }
+      - delay: 0.5s
+      - switch.turn_on: relay
+      - globals.set:
+          id: state
+          value: '1'
+      - delay: 28s
+      - switch.turn_off: relay
+      - globals.set:
+          id: state
+          value: '0'
+    close_action:
+      - lambda: |-
+          if(id(state) > 0) {
+            id(relay).turn_off();
+          }
+      - delay: 0.5s
+      - switch.turn_on: relay
+      - globals.set:
+          id: state
+          value: '2'
+      - delay: 28s
+      - switch.turn_off: relay
+      - globals.set:
+          id: state
+          value: '0'
