@@ -80,7 +80,7 @@ cover:
       - globals.set:
           id: state
           value: '1'
-      - delay: 28s
+      - delay: 0.5s
       - switch.turn_off: relay
       - globals.set:
           id: state
@@ -95,7 +95,7 @@ cover:
       - globals.set:
           id: state
           value: '2'
-      - delay: 28s
+      - delay: 0.5s
       - switch.turn_off: relay
       - globals.set:
           id: state

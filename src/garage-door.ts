@@ -54,6 +54,8 @@ interface ESPHomeEvent {
   current_operation: 'IDLE' | 'OPENING' | 'CLOSING';
 }
 
+const MAX_RETRY = 5;
+
 export class GarageDoor implements AccessoryPlugin {
   private readonly accessory: PlatformAccessory;
   private service: Service;
@@ -63,8 +65,14 @@ export class GarageDoor implements AccessoryPlugin {
 
   constructor(readonly logger: Logging, readonly config: GarageDoorConfig, readonly api: API) {
     this.accessory = new api.platformAccessory(config.name, api.hap.uuid.generate(config.name));
-    api.on(APIEvent.DID_FINISH_LAUNCHING, () => {
-      this.connectToESPSource();
+    api.on(APIEvent.DID_FINISH_LAUNCHING, async () => {
+      for (let i = 0; i < MAX_RETRY; i++) {
+        try {
+          await this.connectToESPSource();
+        } catch (e) {
+          logger.error(e.toString(), e);
+        }
+      }
     });
     api.on(APIEvent.SHUTDOWN, () => {
       try {
@@ -163,23 +171,18 @@ export class GarageDoor implements AccessoryPlugin {
   }
 
   private connectToESPSource() {
-    for (let i = 0; i < 3; i++) {
-      try {
-        this.eventSource = initESPHome(this.config.host, this.config.port, this.logger, e =>
-          this.handleDoorState(e)
-        );
-        this.eventSource.onerror = e => {
-          this.logger.error('Connection error, reinitialize...', e);
-          this.connectToESPSource();
-        };
-        return;
-      } catch (e) {
-        this.logger.error(
-          `Cannot connect to ESPHome@${this.config.host}:${this.config.port || 80} on attempt ${i +
-            1}`,
-          e
-        );
-      }
-    }
+    return new Promise((resolve, reject) => {
+      this.eventSource = initESPHome(this.config.host, this.config.port, this.logger, e =>
+        this.handleDoorState(e)
+      );
+      this.eventSource.onerror = e => {
+        this.logger.error('Connection error, reinitialize...', e);
+        reject(e);
+      };
+      this.eventSource.onopen = m => {
+        this.logger.error('Connection initialized...', m);
+        resolve(m);
+      };
+    });
   }
 }
