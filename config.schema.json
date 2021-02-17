@@ -23,8 +23,15 @@
         "description": "ESPHome Host IP/Name",
         "type": "string",
         "required": true
+      },
+      "opening_time": {
+        "title": "Opening closing time (in seconds)",
+        "description": "",
+        "type": "number",
+        "default": 30,
+        "required": true
       }
     }
   },
-  "form": ["name", "host", "port"]
+  "form": ["name", "host", "port", "opening_time"]
 }

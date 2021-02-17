@@ -173,6 +173,7 @@ export class GarageDoor implements AccessoryPlugin {
         }
         this.timeout = setTimeout(() => {
           if (state == 'open') {
+            this.logger.debug('Timeout triggered, update door state to open');
             this.service.updateCharacteristic(
               Characteristic.CurrentDoorState,
               Characteristic.CurrentDoorState.OPEN
