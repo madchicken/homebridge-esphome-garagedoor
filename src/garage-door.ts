@@ -58,6 +58,7 @@ interface ESPHomeEvent {
 }
 
 const MAX_RETRY = 5;
+const DEFAULT_OPEN_TIME = 30; // 30 seconds
 
 export class GarageDoor implements AccessoryPlugin {
   private readonly accessory: PlatformAccessory;
@@ -171,16 +172,15 @@ export class GarageDoor implements AccessoryPlugin {
           clearTimeout(this.timeout);
           this.timeout = null;
         }
+        const openingTime = this.config.opening_time || DEFAULT_OPEN_TIME;
         this.timeout = setTimeout(() => {
-          if (state == 'open') {
-            this.logger.debug('Timeout triggered, update door state to open');
-            this.service.updateCharacteristic(
-              Characteristic.CurrentDoorState,
-              Characteristic.CurrentDoorState.OPEN
-            );
-          }
+          this.logger.debug('Timeout triggered, update door state to open');
+          this.service.updateCharacteristic(
+            Characteristic.CurrentDoorState,
+            Characteristic.CurrentDoorState.OPEN
+          );
           this.timeout = null;
-        }, this.config.opening_time * 1000);
+        }, openingTime * 1000);
       }
       return resp.ok;
     } catch (e) {
@@ -192,17 +192,13 @@ export class GarageDoor implements AccessoryPlugin {
   private handleDoorState(e: ESPHomeEvent) {
     const Characteristic = this.api.hap.Characteristic;
     [this.espTemplateName, this.espTemplateId] = e.id.split('-');
-    if (this.service) {
+    if (this.service && this.initialized) {
       this.logger.debug('GarageDoorOpener Service: updating door state', e);
       const isClosed = e.state === 'CLOSED';
       if (isClosed) {
         // we control only the close state, since open is done through the timeout above
         this.service.updateCharacteristic(
           Characteristic.CurrentDoorState,
-          Characteristic.CurrentDoorState.CLOSED
-        );
-        this.service.updateCharacteristic(
-          Characteristic.TargetDoorState,
           Characteristic.CurrentDoorState.CLOSED
         );
       }
