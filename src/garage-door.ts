@@ -136,6 +136,10 @@ export class GarageDoor implements AccessoryPlugin {
         }
       );
 
+    this.service
+      .getCharacteristic(Characteristic.CurrentDoorState)
+      .updateValue(Characteristic.CurrentDoorState.CLOSED);
+
     const infoService =
       this.accessory.getService(this.api.hap.Service.AccessoryInformation) ||
       this.accessory.addService(this.api.hap.Service.AccessoryInformation);
