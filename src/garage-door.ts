@@ -139,6 +139,9 @@ export class GarageDoor implements AccessoryPlugin {
     this.service
       .getCharacteristic(Characteristic.CurrentDoorState)
       .updateValue(Characteristic.CurrentDoorState.CLOSED);
+    this.service
+      .getCharacteristic(Characteristic.TargetDoorState)
+      .updateValue(Characteristic.CurrentDoorState.CLOSED);
 
     const infoService =
       this.accessory.getService(this.api.hap.Service.AccessoryInformation) ||
@@ -183,6 +186,10 @@ export class GarageDoor implements AccessoryPlugin {
             Characteristic.CurrentDoorState,
             Characteristic.CurrentDoorState.OPEN
           );
+          this.service.updateCharacteristic(
+            Characteristic.TargetDoorState,
+            Characteristic.TargetDoorState.OPEN
+          );
           this.timeout = null;
         }, openingTime * 1000);
       }
@@ -204,6 +211,10 @@ export class GarageDoor implements AccessoryPlugin {
         this.service.updateCharacteristic(
           Characteristic.CurrentDoorState,
           Characteristic.CurrentDoorState.CLOSED
+        );
+        this.service.updateCharacteristic(
+          Characteristic.TargetDoorState,
+          Characteristic.TargetDoorState.CLOSED
         );
       }
     } else {
