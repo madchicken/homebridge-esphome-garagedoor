@@ -169,9 +169,10 @@ export class GarageDoor implements AccessoryPlugin {
       );
       if (this.initialized) {
         const Characteristic = this.api.hap.Characteristic;
+        const isOpening = state === 'open';
         this.service.updateCharacteristic(
           Characteristic.CurrentDoorState,
-          state === 'open'
+          isOpening
             ? Characteristic.CurrentDoorState.OPENING
             : Characteristic.CurrentDoorState.CLOSING
         );
@@ -179,19 +180,21 @@ export class GarageDoor implements AccessoryPlugin {
           clearTimeout(this.timeout);
           this.timeout = null;
         }
-        const openingTime = this.config.opening_time || DEFAULT_OPEN_TIME;
-        this.timeout = setTimeout(() => {
-          this.logger.debug('Timeout triggered, update door state to open');
-          this.service.updateCharacteristic(
-            Characteristic.CurrentDoorState,
-            Characteristic.CurrentDoorState.OPEN
-          );
-          this.service.updateCharacteristic(
-            Characteristic.TargetDoorState,
-            Characteristic.TargetDoorState.OPEN
-          );
-          this.timeout = null;
-        }, openingTime * 1000);
+        if (isOpening) {
+          const openingTime = this.config.opening_time || DEFAULT_OPEN_TIME;
+          this.timeout = setTimeout(() => {
+            this.logger.debug('Timeout triggered, update door state to open');
+            this.service.updateCharacteristic(
+              Characteristic.CurrentDoorState,
+              Characteristic.CurrentDoorState.OPEN
+            );
+            this.service.updateCharacteristic(
+              Characteristic.TargetDoorState,
+              Characteristic.TargetDoorState.OPEN
+            );
+            this.timeout = null;
+          }, openingTime * 1000);
+        }
       }
       return resp.ok;
     } catch (e) {
