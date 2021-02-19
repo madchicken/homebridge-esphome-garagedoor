@@ -71,11 +71,6 @@ cover:
         return COVER_CLOSED;
       }
     open_action:
-      - lambda: |-
-          if(id(state) > 0) {
-            id(relay).turn_off();
-          }
-      - delay: 0.5s
       - switch.turn_on: relay
       - globals.set:
           id: state
@@ -86,11 +81,6 @@ cover:
           id: state
           value: '0'
     close_action:
-      - lambda: |-
-          if(id(state) > 0) {
-            id(relay).turn_off();
-          }
-      - delay: 0.5s
       - switch.turn_on: relay
       - globals.set:
           id: state
