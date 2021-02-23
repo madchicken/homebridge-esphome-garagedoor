@@ -90,9 +90,10 @@ export class GarageDoor implements AccessoryPlugin {
   private async initConnection(): Promise<EventSource> {
     try {
       return await retry(() => this.connectToESPSource(), {
-        retries: MAX_RETRY,
+        forever: true,
         minTimeout: 5000,
-        maxTimeout: 5000,
+        maxTimeout: 10000,
+        randomize: true,
 
         onRetry: () => this.logger.info('Retrying connect to hardware'),
       });
@@ -209,16 +210,23 @@ export class GarageDoor implements AccessoryPlugin {
     if (this.service && this.initialized) {
       this.logger.debug('GarageDoorOpener Service: updating door state', e);
       const isClosed = e.state === 'CLOSED';
-      if (isClosed) {
+      const currentStatus = isClosed
+        ? Characteristic.CurrentDoorState.CLOSED
+        : Characteristic.CurrentDoorState.OPEN;
+      const targetStatus = isClosed
+        ? Characteristic.TargetDoorState.CLOSED
+        : Characteristic.TargetDoorState.OPEN;
+      if (this.timeout) {
+        if (isClosed) {
+          // we control only the close state, since open is done through the timeout above
+          this.service.updateCharacteristic(Characteristic.CurrentDoorState, currentStatus);
+          this.service.updateCharacteristic(Characteristic.TargetDoorState, targetStatus);
+        }
+      } else {
+        // the event is coming from an external command (a wall button or remote control) so we update the status
         // we control only the close state, since open is done through the timeout above
-        this.service.updateCharacteristic(
-          Characteristic.CurrentDoorState,
-          Characteristic.CurrentDoorState.CLOSED
-        );
-        this.service.updateCharacteristic(
-          Characteristic.TargetDoorState,
-          Characteristic.TargetDoorState.CLOSED
-        );
+        this.service.updateCharacteristic(Characteristic.CurrentDoorState, currentStatus);
+        this.service.updateCharacteristic(Characteristic.TargetDoorState, targetStatus);
       }
     } else {
       this.logger.warn('GarageDoorOpener Service non yet initialized');
