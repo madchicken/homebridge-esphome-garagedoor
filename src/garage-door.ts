@@ -73,6 +73,7 @@ export class GarageDoor implements AccessoryPlugin {
   constructor(readonly logger: Logging, readonly config: GarageDoorConfig, readonly api: API) {
     this.accessory = new api.platformAccessory(config.name, api.hap.uuid.generate(config.name));
     this.initialized = false;
+    this.timeout = null;
     api.on(APIEvent.DID_FINISH_LAUNCHING, async () => await this.initConnection());
     api.on(APIEvent.SHUTDOWN, () => this.closeConnection());
   }
@@ -223,6 +224,8 @@ export class GarageDoor implements AccessoryPlugin {
           this.service.updateCharacteristic(Characteristic.TargetDoorState, targetStatus);
         }
       } else {
+        this.logger.debug('GarageDoorOpener Service: updating current state to ', currentStatus);
+        this.logger.debug('GarageDoorOpener Service: updating target state to ', targetStatus);
         // the event is coming from an external command (a wall button or remote control) so we update the status
         // we control only the close state, since open is done through the timeout above
         this.service.updateCharacteristic(Characteristic.CurrentDoorState, currentStatus);
