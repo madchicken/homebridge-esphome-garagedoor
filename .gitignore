@@ -3,3 +3,5 @@
 .idea
 .npmrc
 .cache
+.esphome
+esphome/.esphome

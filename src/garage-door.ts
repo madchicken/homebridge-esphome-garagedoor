@@ -90,16 +90,10 @@ export class GarageDoor implements AccessoryPlugin {
 
   private async initConnection(): Promise<EventSource> {
     try {
-      return await retry(() => this.connectToESPSource(), {
-        forever: true,
-        minTimeout: 5000,
-        maxTimeout: 10000,
-        randomize: true,
-
-        onRetry: () => this.logger.info('Retrying connect to hardware'),
-      });
+      this.eventSource = await this.connectToESPSource();
     } catch (e) {
-      this.logger.info(`error: ${e.message}`, e);
+      this.logger.error(e.message, e);
+      this.eventSource = null;
       return null;
     }
   }
@@ -261,6 +255,7 @@ export class GarageDoor implements AccessoryPlugin {
           this.closeConnection();
           await this.initConnection();
         }, 20 * 1000); // if no ping is received in 20 seconds, we reconnect
+        return eventSource;
       } catch (e) {
         reject(e);
       }
