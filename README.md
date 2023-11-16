@@ -1,11 +1,11 @@
 # homebridge-esphome-garagedoor
 
 A simple [HomeBridge](https://github.com/homebridge/homebridge) plugin to make your
-garage door smart using a Shelly 1 and ESPHome. Based on [this](https://savjee.be/2020/06/make-garage-door-opener-smart-shelly-esphome-home-assistant/) project.
+garage door smart using a [Shelly 1](https://shelly.cloud/products/shelly-1-smart-home-automation-relay/) and [ESPHome](https://esphome.io/). Based on [this](https://savjee.be/2020/06/make-garage-door-opener-smart-shelly-esphome-home-assistant/) project.
 
 ## Setup
 
-You need a Shelly 1 and ESPHome environment to get started. Please follow the blog post linked above to get a working firmware for your Shelly.
+You need a [Shelly 1](https://shelly.cloud/products/shelly-1-smart-home-automation-relay/) and [ESPHome](https://esphome.io/) environment to get started. Please follow the blog post linked above to get a working firmware for your Shelly.
 Once you are able to open and close your garage through the ESPHome WEB UI, you can install this plugin.
 
 Add this configuration to your homebrige config.json file:
