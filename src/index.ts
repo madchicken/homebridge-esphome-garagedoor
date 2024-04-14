@@ -1,4 +1,4 @@
-import { API } from 'homebridge';
+import { API, Logger } from 'homebridge';
 import { GarageDoor, initESPHome } from './garage-door';
 import { withPrefix } from 'homebridge/lib/logger';
 
@@ -7,7 +7,7 @@ export default function(api: API) {
 }
 
 function run() {
-  const source = initESPHome('192.168.0.50', 80, withPrefix('ESPHome'), e => console.log(e));
+  const source = initESPHome('garagedoor.local', 80, withPrefix('ESPHome'), e => console.log(e));
   return new Promise<void>(resolve => {
     process.stdin.on('keypress', async (str, key) => {
       if (key.ctrl && key.name === 'c') {
@@ -17,7 +17,7 @@ function run() {
     });
   });
 }
-/*
+
 run()
   .then(() => {
     console.log('Exiting...');
@@ -27,4 +27,3 @@ run()
     console.log('Exiting...');
     process.exit(1);
   });
-*/
