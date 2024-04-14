@@ -60,6 +60,8 @@ interface ESPHomeEvent {
 const RECONNECT_TIMEOUT = 10000;
 const DEFAULT_OPEN_TIME = 30; // 30 seconds
 
+const PING_TIME = 20 * 1000;
+
 export class GarageDoor implements AccessoryPlugin {
   private readonly accessory: PlatformAccessory;
   private service: Service;
@@ -92,6 +94,7 @@ export class GarageDoor implements AccessoryPlugin {
   private async initConnection(): Promise<EventSource> {
     try {
       this.eventSource = await this.connectToESPSource();
+      this.aliveTimeout = this.createTimeout();
     } catch (e) {
       this.logger.error(e.message, e);
       this.eventSource = null;
@@ -236,9 +239,10 @@ export class GarageDoor implements AccessoryPlugin {
 
   private createTimeout(): Timeout {
     return setTimeout(async () => {
+      this.logger.warn(`Closing connection since no PING was received in the last ${PING_TIME}ms`);
       this.closeConnection();
       await this.initConnection();
-    }, 20 * 1000); // if no ping is received in 20 seconds, we reconnect
+    }, PING_TIME); // if no ping is received in 20 seconds, we reconnect
   }
 
   private connectToESPSource(): Promise<EventSource> {
@@ -250,15 +254,17 @@ export class GarageDoor implements AccessoryPlugin {
 
         eventSource.onerror = async e => {
           this.logger.error('Connection error, reinitialize...', e);
-          this.initialized = false;
-          reject(e);
+          if (this.initialized) {
+            this.initialized = false;
+          } else {
+            reject(e);
+          }
         };
         eventSource.onopen = m => {
           if (!this.initialized) {
             this.logger.info(`Connection to ESP initialized: Event source started at ${url}: ${m}`);
             this.initialized = true;
             clearTimeout(this.aliveTimeout);
-            this.aliveTimeout = this.createTimeout();
             eventSource.addEventListener('state', e => {
               try {
                 const b = JSON.parse(e.data) as ESPHomeEvent;
@@ -270,7 +276,8 @@ export class GarageDoor implements AccessoryPlugin {
             eventSource.addEventListener('log', e => {
               this.logger.debug(e.data);
             });
-            eventSource.addEventListener('ping', () => {
+            eventSource.addEventListener('ping', e => {
+              this.logger.debug(`PING message {e}`);
               clearTimeout(this.aliveTimeout);
               this.aliveTimeout = this.createTimeout();
             });
