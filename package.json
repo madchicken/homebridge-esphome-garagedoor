@@ -1,6 +1,6 @@
 {
   "name": "homebridge-esphome-garagedoor",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Homebridge plugin to map garage door with a Shelly1 and ESPHome",
   "main": "dist/index.js",
   "scripts": {
@@ -37,8 +37,7 @@
   "dependencies": {
     "eventsource": "^1.1.2",
     "lodash": "^4.17.21",
-    "node-fetch": "^2.7.0",
-    "homebridge": "^1.7.0"
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.2",
