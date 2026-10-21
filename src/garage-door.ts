@@ -69,42 +69,117 @@ export class GarageDoor implements AccessoryPlugin {
   espTemplateId: string;
   private eventSource: EventSource;
   private initialized: boolean;
+  private shuttingDown: boolean;
   private timeout: Timeout;
   private aliveTimeout: Timeout;
+  private reconnectTimeout: Timeout;
+  private readonly handleDoorStateDebounced = debounce(
+    (e: ESPHomeEvent) => this.handleDoorState(e),
+    DEBOUNCE_TIME
+  );
 
   constructor(readonly logger: Logging, readonly config: GarageDoorConfig, readonly api: API) {
     this.accessory = new api.platformAccessory(config.name, api.hap.uuid.generate(config.name));
     this.initialized = false;
+    this.shuttingDown = false;
     this.timeout = null;
     this.aliveTimeout = null;
-    api.on(APIEvent.DID_FINISH_LAUNCHING, async () => await this.initConnection());
-    api.on(APIEvent.SHUTDOWN, () => this.closeConnection());
+    this.reconnectTimeout = null;
+    api.on(APIEvent.DID_FINISH_LAUNCHING, () => this.connect());
+    api.on(APIEvent.SHUTDOWN, () => {
+      this.shuttingDown = true;
+      clearTimeout(this.reconnectTimeout);
+      this.closeConnection();
+    });
   }
 
   private closeConnection() {
+    clearTimeout(this.aliveTimeout);
+    this.aliveTimeout = null;
     try {
+      // close() also stops the built-in auto-reconnect loop of the eventsource library
       this.eventSource?.close();
     } catch (e) {
       this.logger.error(e);
     } finally {
+      this.eventSource = null;
       this.initialized = false;
     }
   }
 
-  private async initConnection(): Promise<EventSource> {
-    try {
-      this.eventSource = await this.connectToESPSource();
-      this.aliveTimeout = this.createTimeout();
-    } catch (e) {
-      this.logger.error(e.message, e);
-      this.eventSource = null;
-      setTimeout(() => {
-        this.initConnection();
-      }, RECONNECT_TIMEOUT);
-      return null;
+  private scheduleReconnect() {
+    this.closeConnection();
+    if (this.shuttingDown || this.reconnectTimeout) {
+      return;
     }
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+      this.connect();
+    }, RECONNECT_TIMEOUT);
   }
 
+  private resetAliveTimeout() {
+    clearTimeout(this.aliveTimeout);
+    this.aliveTimeout = setTimeout(() => {
+      this.logger.warn(`Closing connection since no PING was received in the last ${PING_TIME}ms`);
+      this.scheduleReconnect();
+    }, PING_TIME); // if no ping is received in 20 seconds, we reconnect
+  }
+
+  private connect() {
+    // make sure we never have more than one EventSource alive
+    this.closeConnection();
+    if (this.shuttingDown) {
+      return;
+    }
+    const url = `http://${this.config.host}:${this.config.port || 80}/events`;
+    let eventSource: EventSource;
+    try {
+      eventSource = new EventSource(url);
+    } catch (e) {
+      this.logger.error(e.message, e);
+      this.scheduleReconnect();
+      return;
+    }
+    this.eventSource = eventSource;
+    // also covers a connection that never opens nor fails
+    this.resetAliveTimeout();
+
+    eventSource.onerror = e => {
+      if (eventSource !== this.eventSource) {
+        return;
+      }
+      this.logger.error(
+        `Connection error, reconnecting in ${RECONNECT_TIMEOUT}ms...`,
+        (e as any)?.message || ''
+      );
+      this.scheduleReconnect();
+    };
+    eventSource.onopen = () => {
+      if (eventSource !== this.eventSource) {
+        return;
+      }
+      this.logger.info(`Connection to ESP initialized: Event source started at ${url}`);
+      this.initialized = true;
+      this.resetAliveTimeout();
+    };
+    // listeners are registered once per EventSource, not on every (re)open
+    eventSource.addEventListener('state', e => {
+      try {
+        const b = JSON.parse(e.data) as ESPHomeEvent;
+        this.handleDoorStateDebounced(b);
+      } catch (e) {
+        this.logger.error('Cannot deserialize message from ESPHome', e);
+      }
+    });
+    eventSource.addEventListener('log', e => {
+      this.logger.debug(e.data);
+    });
+    eventSource.addEventListener('ping', () => {
+      this.logger.debug('PING message');
+      this.resetAliveTimeout();
+    });
+  }
   getControllers(): Controller[] {
     return [];
   }
@@ -235,58 +310,5 @@ export class GarageDoor implements AccessoryPlugin {
     } else {
       this.logger.warn('GarageDoorOpener Service non yet initialized');
     }
-  }
-
-  private createTimeout(): Timeout {
-    return setTimeout(async () => {
-      this.logger.warn(`Closing connection since no PING was received in the last ${PING_TIME}ms`);
-      this.closeConnection();
-      await this.initConnection();
-    }, PING_TIME); // if no ping is received in 20 seconds, we reconnect
-  }
-
-  private connectToESPSource(): Promise<EventSource> {
-    return new Promise((resolve, reject) => {
-      try {
-        const url = `http://${this.config.host}:${this.config.port}/events`;
-        const eventSource = new EventSource(url);
-        const fn = debounce(e => this.handleDoorState(e), DEBOUNCE_TIME);
-
-        eventSource.onerror = async e => {
-          this.logger.error('Connection error, reinitialize...', e);
-          if (this.initialized) {
-            this.initialized = false;
-          } else {
-            reject(e);
-          }
-        };
-        eventSource.onopen = m => {
-          if (!this.initialized) {
-            this.logger.info(`Connection to ESP initialized: Event source started at ${url}: ${m}`);
-            this.initialized = true;
-            clearTimeout(this.aliveTimeout);
-            eventSource.addEventListener('state', e => {
-              try {
-                const b = JSON.parse(e.data) as ESPHomeEvent;
-                fn(b);
-              } catch (e) {
-                this.logger.error('Cannot deserialize message from ESPHome', e);
-              }
-            });
-            eventSource.addEventListener('log', e => {
-              this.logger.debug(e.data);
-            });
-            eventSource.addEventListener('ping', e => {
-              this.logger.debug(`PING message {e}`);
-              clearTimeout(this.aliveTimeout);
-              this.aliveTimeout = this.createTimeout();
-            });
-            resolve(eventSource);
-          }
-        };
-      } catch (e) {
-        reject(e);
-      }
-    });
   }
 }
